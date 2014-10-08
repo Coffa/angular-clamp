@@ -1,6 +1,18 @@
-angular.module('ngClamp', [])
-  .directive('clamp', ['$timeout', function($timeout) {
-    return function(scope, element, attrs) {
+(function() {
+  angular
+    .module('directives.clamp', [])
+    .directive('clamp', clampDirective);
+
+  clampDirective.$inject = ['$timeout'];
+  function clampDirective($timeout) {
+    var directive = {
+      restrict: 'A',
+      link: linkDirective
+    };
+
+    return directive;
+
+    function linkDirective(scope, element, attrs) {
       $timeout(function() {
         var lineCount = 1, lineMax = +attrs.clamp;
         var lineStart = 0, lineEnd = 0;
@@ -12,11 +24,8 @@ angular.module('ngClamp', [])
         element.append(estimateTag);
 
         text.replace(/ /g, function(m, pos) {
-          if (lineCount > lineMax) {
+          if (lineCount >= lineMax) {
             return;
-          } else if (lineCount === lineMax) {
-            estimateTag.html(text.slice(lineStart));
-            resetElement(estimateTag, true);
           } else {
             estimateTag.html(text.slice(lineStart, pos));
             if (estimateTag.width() > maxWidth) {
@@ -30,33 +39,37 @@ angular.module('ngClamp', [])
             lineEnd = pos;
           }
         });
+        estimateTag.html(text.slice(lineStart));
         resetElement(estimateTag, true);
 
-        if (scope.clampCallback) { scope.clampCallback(element, attrs);}
-      })
+        scope.$emit('clampCallback', element, attrs);
+      });
+    }
+  }
 
-      function createElement() {
-        var tagDiv = document.createElement('div');
-        (function(s) {
-          s.position = 'absolute';
-          s.whiteSpace = 'pre';
-          s.visibility = 'hidden';
-          s.display = 'inline-block';
-        })(tagDiv.style);
+  return;
 
-        return $(tagDiv);
-      }
+  function createElement() {
+    var tagDiv = document.createElement('div');
+    (function(s) {
+      s.position = 'absolute';
+      s.whiteSpace = 'pre';
+      s.visibility = 'hidden';
+      s.display = 'inline-block';
+    })(tagDiv.style);
 
-      function resetElement(element, type) {
-        element.css({
-          position: 'inherit',
-          overflow: 'hidden',
-          display: 'block',
-          textOverflow: (type ? 'ellipsis' : 'clip'),
-          visibility: 'inherit',
-          whiteSpace: 'nowrap',
-          width: '100%'
-        });
-      }
-    };
-  }]);
+    return $(tagDiv);
+  }
+
+  function resetElement(element, type) {
+    element.css({
+      position: 'inherit',
+      overflow: 'hidden',
+      display: 'block',
+      textOverflow: (type ? 'ellipsis' : 'clip'),
+      visibility: 'inherit',
+      whiteSpace: 'nowrap',
+      width: '100%'
+    });
+  }
+})();
