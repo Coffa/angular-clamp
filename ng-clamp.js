@@ -17,7 +17,7 @@
         var lineCount = 1, lineMax = +attrs.clamp;
         var lineStart = 0, lineEnd = 0;
         var text = element.html().replace(/\n/g, ' ');
-        var maxWidth = element.width();
+        var maxWidth = element[0].offsetWidth;
         var estimateTag = createElement();
 
         element.empty();
@@ -28,7 +28,7 @@
             return;
           } else {
             estimateTag.html(text.slice(lineStart, pos));
-            if (estimateTag.width() > maxWidth) {
+            if (estimateTag[0].offsetWidth > maxWidth) {
               estimateTag.html(text.slice(lineStart, lineEnd));
               resetElement(estimateTag);
               lineCount++;
@@ -58,7 +58,7 @@
       s.display = 'inline-block';
     })(tagDiv.style);
 
-    return $(tagDiv);
+    return angular.element(tagDiv);
   }
 
   function resetElement(element, type) {
