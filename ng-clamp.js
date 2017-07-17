@@ -3,51 +3,113 @@
     .module('directives.clamp', [])
     .directive('clamp', clampDirective);
 
-  clampDirective.$inject = ['$timeout'];
-  function clampDirective($timeout) {
+  function clampDirective($timeout, $rootScope) {
     var directive = {
       restrict: 'A',
+      scope: {
+        clampExpandable: '@',
+        disabledForSeo: '@',
+        clampAutoresize: '@'
+      },
       link: linkDirective
     };
 
     return directive;
 
     function linkDirective(scope, element, attrs) {
-      $timeout(function() {
-        var lineCount = 1, lineMax = +attrs.clamp;
-        var lineStart = 0, lineEnd = 0;
-        var text = element.html().replace(/\n/g, ' ');
-        var maxWidth = element[0].offsetWidth;
-        var estimateTag = createElement();
+      var originalHtml = '';
 
-        element.empty();
-        element.append(estimateTag);
+      var reset = function reset() {
+        $timeout(function() {
+          element.css('display', 'block');
 
-        text.replace(/ /g, function(m, pos) {
-          if (lineCount >= lineMax) {
-            return;
-          } else {
-            estimateTag.html(text.slice(lineStart, pos));
-            if (estimateTag[0].offsetWidth > maxWidth) {
-              estimateTag.html(text.slice(lineStart, lineEnd));
-              resetElement(estimateTag);
-              lineCount++;
-              lineStart = lineEnd + 1;
-              estimateTag = createElement();
-              element.append(estimateTag);
-            }
-            lineEnd = pos;
-          }
+          originalHtml = element.html();
+
+          doClamp(scope, element, attrs, originalHtml);
         });
-        estimateTag.html(text.slice(lineStart));
-        resetElement(estimateTag, true);
+      };
 
-        scope.$emit('clampCallback', element, attrs);
-      });
+      // ==========
+
+      if (scope.clampAutoresize === 'true') {
+        $rootScope.$on('window_resized', function() {
+          doClamp(scope, element, attrs, originalHtml);
+        });
+      }
+
+      // hide the element for a bit to prevent flicker
+      element.css('display', 'none');
+
+      reset();
+
+      // a way to refresh all clampings without data binding
+      scope.$on('clampReset', reset);
     }
   }
 
   return;
+
+  function doClamp(scope, element, attrs, originalHtml) {
+    var lineCount = 1, lineMax = isNaN(attrs.clamp) ? 3 : +attrs.clamp;
+    var lineStart = 0, lineEnd = 0;
+
+    var expandable = scope.clampExpandable === 'true';
+    var shouldExpand = false;
+
+    // reset
+    element.html(originalHtml);
+
+    // 2 things:
+    // - we need only the text for clamping & remove excessive spaces (>1 to 1)
+    // - append a whitespace, so that the exact last word (rare case) will be calculated
+    var text = element.text().replace(/\s+/g, ' ') + ' ';
+    var maxWidth = element[0].offsetWidth ;
+    var estimateTag = createElement();
+
+    element.empty();
+    element.append(estimateTag);
+
+    text.replace(/ /g, function(m, pos) {
+      if (lineCount <= lineMax) {
+        estimateTag.html(text.slice(lineStart, pos));
+
+        if (estimateTag[0].offsetWidth > maxWidth) {
+          lineCount++;
+
+          if (lineCount > lineMax) {
+            shouldExpand = true;
+            return;
+          }
+
+          estimateTag.html(text.slice(lineStart, lineEnd));
+          resetElement(estimateTag);
+          lineStart = lineEnd + 1;
+          estimateTag = createElement();
+          element.append(estimateTag);
+        }
+
+        lineEnd = pos;
+      }
+    });
+    estimateTag.html(text.slice(lineStart));
+    resetElement(estimateTag, true);
+
+    if (expandable && shouldExpand) {
+      element.css('cursor', 'pointer');
+
+      // clean up
+      element.off('click');
+
+      element.one('click', function() {
+        element.html(originalHtml);
+        element.css('cursor', 'default');
+      });
+
+      var showMore = angular.element('<a style="display: block; text-align: center">Read more</a>');
+
+      element.append(showMore);
+    }
+  }
 
   function createElement() {
     var tagDiv = document.createElement('div');
